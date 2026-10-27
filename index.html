@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>모바일 청첩장</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: 한국어 명조(Gowun Batang) & 고딕(Noto Sans KR) & 영문 세리프(Cormorant Garamond) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            font-family: 'Gowun Batang', serif;
+            background-color: #f3f0eb;
+            color: #3a3532;
+            overflow-x: hidden;
+        }
+        .font-sans-kr {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .font-en {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        /* 스크롤 애니메이션 효과 */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* 아코디언 트랜지션 */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease-in-out;
+        }
+        .accordion-content.open {
+            max-height: 600px;
+        }
+        /* 꽃잎 애니메이션 캔버스 */
+        #petal-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        /* 스크롤바 숨기기 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="flex justify-center min-h-screen">
+
+    <!-- 모바일 컨테이너 (최대 너비 430px 고정으로 모바일 뷰 유지) -->
+    <div class="w-full max-w-[430px] bg-[#fdfbf9] shadow-2xl relative overflow-hidden pb-16">
+        
+        <!-- 꽃잎 효과 캔버스 -->
+        <canvas id="petal-canvas"></canvas>
+
+        <!-- 상단 BGM / 공유 플로팅 바 -->
+        <div class="sticky top-0 z-30 flex justify-between items-center px-5 py-3 bg-[#fdfbf9]/80 backdrop-blur-md border-b border-[#efebe4]">
+            <span class="font-en text-sm tracking-widest text-[#9c8d83] uppercase">Wedding Invitation</span>
+            <button id="bgm-btn" onclick="toggleBgm()" class="flex items-center gap-1.5 text-xs font-sans-kr text-[#7a6f67] bg-[#f4efe9] px-3 py-1.5 rounded-full hover:bg-[#e9e1d8] transition">
+                <i data-lucide="volume-x" id="bgm-icon" class="w-3.5 h-3.5"></i>
+                <span id="bgm-text">BGM OFF</span>
+            </button>
+        </div>
+
+        <!-- 1. 메인 커버 섹션 -->
+        <section class="relative px-6 pt-8 pb-14 text-center">
+            <div class="mb-6">
+                <p class="font-en text-2xl tracking-[0.25em] text-[#8c7b70] mb-1">2026 . 10 . 24</p>
+                <p class="text-xs tracking-[0.2em] text-[#a3968c] font-sans-kr">SATURDAY 1:00 PM</p>
+            </div>
+
+            <!-- 메인 사진 영역 (빈 값 / 플레이스홀더) -->
+            <div class="w-full aspect-[3/4] rounded-t-full rounded-b-2xl border border-[#e5dec9] bg-[#f5f2ed] flex flex-col items-center justify-center p-6 mb-8 relative overflow-hidden shadow-inner group">
+                <!-- 이미지를 넣으실 때 아래 img 태그의 주석을 풀고 src에 이미지 경로를 넣으세요 -->
+                <!-- <img src="" alt="메인 웨딩 사진" class="w-full h-full object-cover absolute inset-0"> -->
+                
+                <div class="z-10 flex flex-col items-center text-[#b5a89f]">
+                    <i data-lucide="image" class="w-12 h-12 mb-3 stroke-[1.2]"></i>
+                    <p class="text-sm font-sans-kr font-light tracking-wider">[ 메인 웨딩 사진 영역 ]</p>
+                    <p class="text-[11px] font-sans-kr text-[#c7bcb4] mt-1">비율 3:4 사진을 이곳에 넣어주세요</p>
+                </div>
+            </div>
+
+            <!-- 신랑 & 신부 이름 영역 (빈 값 처리) -->
+            <div class="flex items-center justify-center gap-6 text-xl tracking-widest font-bold text-[#4a423e] mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-normal text-[#9c8d83]">신랑</span>
+                    <span class="border-b border-[#d4c8be] min-w-[70px] py-1 inline-block text-center text-[#8c7b70] font-normal">
+                        <!-- 신랑 이름 입력란 -->
+                        &nbsp;
+                    </span>
+                </div>
+                <span class="font-en text-lg italic text-[#b5a397]">&amp;</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-normal text-[#9c8d83]">신부</span>
+                    <span class="border-b border-[#d4c8be] min-w-[70px] py-1 inline-block text-center text-[#8c7b70] font-normal">
+                        <!-- 신부 이름 입력란 -->
+                        &nbsp;
+                    </span>
+                </div>
+            </div>
+
+            <p class="text-xs text-[#8c7f77] font-sans-kr font-light mt-4 leading-relaxed">
+                2026년 10월 24일 토요일 오후 1시<br>
+                <span>[ 예식장 이름 및 홀 정보 입력 ]</span>
+            </p>
+        </section>
+
+        <div class="w-12 h-[1px] bg-[#e2dad2] mx-auto my-2"></div>
+
+        <!-- 2. 초대의 글 (인사말) 섹션 -->
+        <section class="px-8 py-14 text-center fade-up">
+            <p class="font-en text-sm tracking-[0.2em] text-[#a8988d] uppercase mb-2">Invitation</p>
+            <h2 class="text-lg font-bold text-[#4a423e] mb-8 tracking-widest">소중한 분들을 초대합니다</h2>
+            
+            <div class="text-sm leading-8 text-[#5c534e] space-y-6 font-normal">
+                <p>
+                    선선한 바람이 불어오는 계절,<br>
+                    서로가 마주보며 다져온 사랑을<br>
+                    이제 함께 한곳을 바라보며<br>
+                    걸어갈 수 있는 큰 사랑으로 키우고자 합니다.
+                </p>
+                <p>
+                    저희 두 사람이 사랑의 이름으로<br>
+                    지켜나갈 수 있게 앞날을<br>
+                    축복해 주시면 감사하겠습니다.
+                </p>
+            </div>
+
+            <!-- 혼주 및 신랑신부 이름 영역 (빈 값 처리) -->
+            <div class="mt-12 pt-8 border-t border-[#f0eae3] space-y-4 text-sm text-[#4a423e]">
+                <div class="flex items-center justify-center gap-2">
+                    <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
+                    <span>·</span>
+                    <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
+                    <span class="text-xs text-[#8c7f77] px-1">의 장남</span>
+                    <span class="inline-block min-w-[65px] border-b border-[#dcd3cb] font-bold text-center py-0.5">&nbsp;</span>
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
+                    <span>·</span>
+                    <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
+                    <span class="text-xs text-[#8c7f77] px-1">의 장녀</span>
+                    <span class="inline-block min-w-[65px] border-b border-[#dcd3cb] font-bold text-center py-0.5">&nbsp;</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 예식 일시 및 달력 섹션 -->
+        <section class="px-8 py-14 bg-[#f8f5f0] text-center fade-up">
+            <p class="font-en text-sm tracking-[0.2em] text-[#a8988d] uppercase mb-2">Calendar</p>
+            <h2 class="text-xl font-en tracking-widest text-[#4a423e] mb-1">2026. 10. 24</h2>
+            <p class="text-xs text-[#8c7f77] font-sans-kr font-light mb-8">토요일 오후 1시</p>
+
+            <!-- 달력 테이블 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#ede7df] max-w-xs mx-auto mb-8">
+                <div class="grid grid-cols-7 gap-y-3 text-xs font-sans-kr text-center">
+                    <div class="text-rose-400 font-medium">일</div>
+                    <div class="text-[#7a6f67]">월</div>
+                    <div class="text-[#7a6f67]">화</div>
+                    <div class="text-[#7a6f67]">수</div>
+                    <div class="text-[#7a6f67]">목</div>
+                    <div class="text-[#7a6f67]">금</div>
+                    <div class="text-blue-400 font-medium">토</div>
+                    
+                    <!-- 10월 달력 예시 -->
+                    <div></div><div></div><div></div><div></div>
+                    <div class="py-1 text-[#5c534e]">1</div>
+                    <div class="py-1 text-[#5c534e]">2</div>
+                    <div class="py-1 text-blue-400">3</div>
+                    
+                    <div class="py-1 text-rose-400">4</div>
+                    <div class="py-1 text-[#5c534e]">5</div>
+                    <div class="py-1 text-[#5c534e]">6</div>
+                    <div class="py-1 text-[#5c534e]">7</div>
+                    <div class="py-1 text-[#5c534e]">8</div>
+                    <div class="py-1 text-[#5c534e]">9</div>
+                    <div class="py-1 text-blue-400">10</div>
+
+                    <div class="py-1 text-rose-400">11</div>
+                    <div class="py-1 text-[#5c534e]">12</div>
+                    <div class="py-1 text-[#5c534e]">13</div>
+                    <div class="py-1 text-[#5c534e]">14</div>
+                    <div class="py-1 text-[#5c534e]">15</div>
+                    <div class="py-1 text-[#5c534e]">16</div>
+                    <div class="py-1 text-blue-400">17</div>
+
+                    <div class="py-1 text-rose-400">18</div>
+                    <div class="py-1 text-[#5c534e]">19</div>
+                    <div class="py-1 text-[#5c534e]">20</div>
+                    <div class="py-1 text-[#5c534e]">21</div>
+                    <div class="py-1 text-[#5c534e]">22</div>
+                    <div class="py-1 text-[#5c534e]">23</div>
+                    <!-- 결혼식 당일 하이라이트 -->
+                    <div class="relative flex items-center justify-center">
+                        <span class="w-7 h-7 rounded-full bg-[#b59e8c] text-white flex items-center justify-center font-medium shadow-sm">24</span>
+                    </div>
+
+                    <div class="py-1 text-rose-400">25</div>
+                    <div class="py-1 text-[#5c534e]">26</div>
+                    <div class="py-1 text-[#5c534e]">27</div>
+                    <div class="py-1 text-[#5c534e]">28</div>
+                    <div class="py-1 text-[#5c534e]">29</div>
+                    <div class="py-1 text-[#5c534e]">30</div>
+                    <div class="py-1 text-blue-400">31</div>
+                </div>
+            </div>
+
+            <p class="text-xs text-[#6e645e] font-sans-kr">
+                저희 두 사람의 결혼식이 <span class="text-[#a6866e] font-bold">소중한 날</span>로 다가옵니다.
+            </p>
+        </section>
+
+        <!-- 4. 갤러리 섹션 (사진 빈 값 처리) -->
+        <section class="px-6 py-14 text-center fade-up">
+            <p class="font-en text-sm tracking-[0.2em] text-[#a8988d] uppercase mb-2">Gallery</p>
+            <h2 class="text-lg font-bold text-[#4a423e] mb-8 tracking-widest">우리의 순간들</h2>
+
+            <!-- 6칸 그리드 사진 영역 (빈 값 플레이스홀더) -->
+            <div class="grid grid-cols-2 gap-3">
+                <!-- 사진 1 -->
+                <div onclick="openPhotoModal(1)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
+                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 1</span>
+                </div>
+                <!-- 사진 2 -->
+                <div onclick="openPhotoModal(2)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
+                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 2</span>
+                </div>
+                <!-- 사진 3 -->
+                <div onclick="openPhotoModal(3)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
+                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 3</span>
+                </div>
+                <!-- 사진 4 -->
+                <div onclick="openPhotoModal(4)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
+                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 4</span>
+                </div>
+                <!-- 사진 5 -->
+                <div onclick="openPhotoModal(5)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
+                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 5</span>
+                </div>
+                <!-- 사진 6 -->
+                <div onclick="openPhotoModal(6)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
+                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
+                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 6</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 오시는 길 섹션 -->
+        <section class="px-6 py-14 bg-[#f8f5f0] text-center fade-up">
+            <p class="font-en text-sm tracking-[0.2em] text-[#a8988d] uppercase mb-2">Location</p>
+            <h2 class="text-lg font-bold text-[#4a423e] mb-6 tracking-widest">오시는 길</h2>
+
+            <div class="mb-6">
+                <p class="text-base font-bold text-[#4a423e] mb-1">[ 예식장 이름 및 층/홀 입력 ]</p>
+                <p class="text-xs font-sans-kr text-[#7a6f67] mb-3">[ 예식장 도로명 또는 지번 주소 입력 ]</p>
+                <p class="text-xs font-sans-kr text-[#9c8d83]">Tel. 02-000-0000</p>
+            </div>
+
+            <!-- 약도/지도 이미지 영역 (빈 값 플레이스홀더) -->
+            <div class="w-full h-52 rounded-2xl bg-[#efeae2] border border-[#e0d8cc] flex flex-col items-center justify-center mb-4">
+                <i data-lucide="map-pin" class="w-8 h-8 text-[#b5a698] mb-2 stroke-[1.5]"></i>
+                <p class="text-xs font-sans-kr text-[#9c8e80]">[ 지도 API 또는 약도 이미지 영역 ]</p>
+            </div>
+
+            <!-- 내비게이션 바로가기 버튼 -->
+            <div class="grid grid-cols-3 gap-2 mb-8 font-sans-kr text-xs">
+                <button onclick="showToast('네이버 지도 링크를 연결해주세요.')" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5]">
+                    <i data-lucide="navigation" class="w-3.5 h-3.5 text-green-600"></i> 네이버지도
+                </button>
+                <button onclick="showToast('카카오내비 링크를 연결해주세요.')" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5]">
+                    <i data-lucide="map" class="w-3.5 h-3.5 text-amber-500"></i> 카카오내비
+                </button>
+                <button onclick="showToast('티맵 링크를 연결해주세요.')" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5]">
+                    <i data-lucide="compass" class="w-3.5 h-3.5 text-rose-500"></i> 티맵
+                </button>
+            </div>
+
+            <!-- 교통편 안내 -->
+            <div class="text-left bg-white p-5 rounded-2xl border border-[#ede7df] space-y-4 font-sans-kr text-xs text-[#5c534e]">
+                <div>
+                    <p class="font-medium text-[#4a423e] flex items-center gap-1.5 mb-1">
+                        <i data-lucide="train" class="w-4 h-4 text-[#9c8d83]"></i> 지하철 안내
+                    </p>
+                    <p class="text-[#7a6f67] pl-5 leading-relaxed">0호선 OO역 0번 출구 도보 5분</p>
+                </div>
+                <div class="border-t border-[#f4f0ea] pt-3">
+                    <p class="font-medium text-[#4a423e] flex items-center gap-1.5 mb-1">
+                        <i data-lucide="bus" class="w-4 h-4 text-[#9c8d83]"></i> 버스 안내
+                    </p>
+                    <p class="text-[#7a6f67] pl-5 leading-relaxed">간선: 000, 000 / 지선: 0000<br>OO 정류장 하차</p>
+                </div>
+                <div class="border-t border-[#f4f0ea] pt-3">
+                    <p class="font-medium text-[#4a423e] flex items-center gap-1.5 mb-1">
+                        <i data-lucide="car" class="w-4 h-4 text-[#9c8d83]"></i> 주차 안내
+                    </p>
+                    <p class="text-[#7a6f67] pl-5 leading-relaxed">건물 내 지하주차장 이용 (2시간 무료 주차)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. 마음 전하실 곳 (계좌번호 구간 - 빈 값으로 처리) -->
+        <section class="px-6 py-14 text-center fade-up">
+            <i data-lucide="heart-handshake" class="w-7 h-7 text-[#bfa898] mx-auto mb-2 stroke-[1.5]"></i>
+            <h2 class="text-lg font-bold text-[#4a423e] mb-3 tracking-widest">마음 전하실 곳</h2>
+            <p class="text-xs text-[#7a6f67] font-sans-kr font-light leading-relaxed mb-8">
+                참석이 어려우신 분들을 위해<br>
+                축하의 마음을 전달할 수 있는 계좌번호를 안내드립니다.
+            </p>
+
+            <!-- 신랑측 계좌 아코디언 -->
+            <div class="mb-3">
+                <button onclick="toggleAccordion('groom-acc', 'groom-icon')" class="w-full py-3.5 px-5 bg-[#f4efe9] hover:bg-[#ebe4dc] transition rounded-xl flex items-center justify-between text-sm font-medium text-[#4a423e]">
+                    <span>신랑측 계좌번호 보기</span>
+                    <i data-lucide="chevron-down" id="groom-icon" class="w-4 h-4 text-[#8c7b70] transition-transform duration-300"></i>
+                </button>
+                
+                <div id="groom-acc" class="accordion-content bg-white border border-t-0 border-[#efeae4] rounded-b-xl px-4 text-left font-sans-kr">
+                    <!-- 신랑 본인 계좌 (빈 값) -->
+                    <div class="py-4 border-b border-[#f5f1ec] flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[11px] px-2 py-0.5 bg-[#f4efe9] text-[#7a6f67] rounded">신랑</span>
+                                <span class="text-xs font-medium text-[#4a423e]">예금주 : <span class="inline-block min-w-[40px] border-b border-[#d4c8be]">&nbsp;</span></span>
+                            </div>
+                            <p class="text-xs text-[#7a6f67]">
+                                은행명 : <span class="inline-block min-w-[40px] border-b border-[#d4c8be] mr-2">&nbsp;</span> 
+                                계좌번호 : <span class="inline-block min-w-[90px] border-b border-[#d4c8be]">&nbsp;</span>
+                            </p>
+                        </div>
+                        <button onclick="copyAccount('')" class="px-3 py-1.5 bg-[#fdfbf9] border border-[#dcd3c8] rounded-lg text-xs text-[#5c534e] hover:bg-[#f4efe9] transition flex items-center gap-1 shrink-0">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                        </button>
+                    </div>
+
+                    <!-- 신랑 혼주(아버지) 계좌 (빈 값) -->
+                    <div class="py-4 border-b border-[#f5f1ec] flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[11px] px-2 py-0.5 bg-[#f4efe9] text-[#7a6f67] rounded">신랑 아버지</span>
+                                <span class="text-xs font-medium text-[#4a423e]">예금주 : <span class="inline-block min-w-[40px] border-b border-[#d4c8be]">&nbsp;</span></span>
+                            </div>
+                            <p class="text-xs text-[#7a6f67]">
+                                은행명 : <span class="inline-block min-w-[40px] border-b border-[#d4c8be] mr-2">&nbsp;</span> 
+                                계좌번호 : <span class="inline-block min-w-[90px] border-b border-[#d4c8be]">&nbsp;</span>
+                            </p>
+                        </div>
+                        <button onclick="copyAccount('')" class="px-3 py-1.5 bg-[#fdfbf9] border border-[#dcd3c8] rounded-lg text-xs text-[#5c534e] hover:bg-[#f4efe9] transition flex items-center gap-1 shrink-0">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                        </button>
+                    </div>
+
+                    <!-- 신랑 혼주(어머니) 계좌 (빈 값) -->
+                    <div class="py-4 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[11px] px-2 py-0.5 bg-[#f4efe9] text-[#7a6f67] rounded">신랑 어머니</span>
+                                <span class="text-xs font-medium text-[#4a423e]">예금주 : <span class="inline-block min-w-[40px] border-b border-[#d4c8be]">&nbsp;</span></span>
+                            </div>
+                            <p class="text-xs text-[#7a6f67]">
+                                은행명 : <span class="inline-block min-w-[40px] border-b border-[#d4c8be] mr-2">&nbsp;</span> 
+                                계좌번호 : <span class="inline-block min-w-[90px] border-b border-[#d4c8be]">&nbsp;</span>
+                            </p>
+                        </div>
+                        <button onclick="copyAccount('')" class="px-3 py-1.5 bg-[#fdfbf9] border border-[#dcd3c8] rounded-lg text-xs text-[#5c534e] hover:bg-[#f4efe9] transition flex items-center gap-1 shrink-0">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 신부측 계좌 아코디언 -->
+            <div>
+                <button onclick="toggleAccordion('bride-acc', 'bride-icon')" class="w-full py-3.5 px-5 bg-[#f7eeee] hover:bg-[#efe2e2] transition rounded-xl flex items-center justify-between text-sm font-medium text-[#4a423e]">
+                    <span>신부측 계좌번호 보기</span>
+                    <i data-lucide="chevron-down" id="bride-icon" class="w-4 h-4 text-[#9e7b7b] transition-transform duration-300"></i>
+                </button>
+                
+                <div id="bride-acc" class="accordion-content bg-white border border-t-0 border-[#f2e6e6] rounded-b-xl px-4 text-left font-sans-kr">
+                    <!-- 신부 본인 계좌 (빈 값) -->
+                    <div class="py-4 border-b border-[#f7f0f0] flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[11px] px-2 py-0.5 bg-[#f7eeee] text-[#8c6d6d] rounded">신부</span>
+                                <span class="text-xs font-medium text-[#4a423e]">예금주 : <span class="inline-block min-w-[40px] border-b border-[#dfc8c8]">&nbsp;</span></span>
+                            </div>
+                            <p class="text-xs text-[#7a6f67]">
+                                은행명 : <span class="inline-block min-w-[40px] border-b border-[#dfc8c8] mr-2">&nbsp;</span> 
+                                계좌번호 : <span class="inline-block min-w-[90px] border-b border-[#dfc8c8]">&nbsp;</span>
+                            </p>
+                        </div>
+                        <button onclick="copyAccount('')" class="px-3 py-1.5 bg-[#fdfbf9] border border-[#e3d1d1] rounded-lg text-xs text-[#5c534e] hover:bg-[#f7eeee] transition flex items-center gap-1 shrink-0">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                        </button>
+                    </div>
+
+                    <!-- 신부 혼주(아버지) 계좌 (빈 값) -->
+                    <div class="py-4 border-b border-[#f7f0f0] flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[11px] px-2 py-0.5 bg-[#f7eeee] text-[#8c6d6d] rounded">신부 아버지</span>
+                                <span class="text-xs font-medium text-[#4a423e]">예금주 : <span class="inline-block min-w-[40px] border-b border-[#dfc8c8]">&nbsp;</span></span>
+                            </div>
+                            <p class="text-xs text-[#7a6f67]">
+                                은행명 : <span class="inline-block min-w-[40px] border-b border-[#dfc8c8] mr-2">&nbsp;</span> 
+                                계좌번호 : <span class="inline-block min-w-[90px] border-b border-[#dfc8c8]">&nbsp;</span>
+                            </p>
+                        </div>
+                        <button onclick="copyAccount('')" class="px-3 py-1.5 bg-[#fdfbf9] border border-[#e3d1d1] rounded-lg text-xs text-[#5c534e] hover:bg-[#f7eeee] transition flex items-center gap-1 shrink-0">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                        </button>
+                    </div>
+
+                    <!-- 신부 혼주(어머니) 계좌 (빈 값) -->
+                    <div class="py-4 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[11px] px-2 py-0.5 bg-[#f7eeee] text-[#8c6d6d] rounded">신부 어머니</span>
+                                <span class="text-xs font-medium text-[#4a423e]">예금주 : <span class="inline-block min-w-[40px] border-b border-[#dfc8c8]">&nbsp;</span></span>
+                            </div>
+                            <p class="text-xs text-[#7a6f67]">
+                                은행명 : <span class="inline-block min-w-[40px] border-b border-[#dfc8c8] mr-2">&nbsp;</span> 
+                                계좌번호 : <span class="inline-block min-w-[90px] border-b border-[#dfc8c8]">&nbsp;</span>
+                            </p>
+                        </div>
+                        <button onclick="copyAccount('')" class="px-3 py-1.5 bg-[#fdfbf9] border border-[#e3d1d1] rounded-lg text-xs text-[#5c534e] hover:bg-[#f7eeee] transition flex items-center gap-1 shrink-0">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 복사
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. 방명록(축하 메시지) 섹션 -->
+        <section class="px-6 py-14 bg-[#f8f5f0] text-center fade-up">
+            <p class="font-en text-sm tracking-[0.2em] text-[#a8988d] uppercase mb-2">Guestbook</p>
+            <h2 class="text-lg font-bold text-[#4a423e] mb-6 tracking-widest">축하 메시지 남기기</h2>
+
+            <form onsubmit="addGuestbook(event)" class="bg-white p-4 rounded-2xl border border-[#ede7df] shadow-sm mb-6 font-sans-kr text-xs">
+                <input type="text" id="guest-name" placeholder="성함을 입력해주세요" required class="w-full px-3 py-2.5 mb-2 rounded-lg bg-[#faf8f5] border border-[#e6dfd5] focus:outline-none focus:border-[#b59e8c]">
+                <textarea id="guest-msg" rows="3" placeholder="축하의 마음을 남겨주세요" required class="w-full px-3 py-2.5 mb-2 rounded-lg bg-[#faf8f5] border border-[#e6dfd5] focus:outline-none focus:border-[#b59e8c] resize-none"></textarea>
+                <button type="submit" class="w-full py-2.5 bg-[#b59e8c] hover:bg-[#a18977] text-white font-medium rounded-lg transition">
+                    축하 메시지 등록하기
+                </button>
+            </form>
+
+            <!-- 등록된 메시지 리스트 -->
+            <div id="guestbook-list" class="space-y-2.5 text-left font-sans-kr text-xs">
+                <div class="bg-white p-4 rounded-xl border border-[#ede7df]">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="font-medium text-[#4a423e]">하객 예시</span>
+                        <span class="text-[10px] text-[#a89c91]">방금 전</span>
+                    </div>
+                    <p class="text-[#6e645e] leading-relaxed">두 분의 결혼을 진심으로 축하드립니다! 늘 행복하세요 :)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. 하단 공유 및 푸터 -->
+        <footer class="px-6 pt-12 pb-8 text-center">
+            <div class="flex justify-center gap-3 mb-8 font-sans-kr text-xs">
+                <button onclick="copyUrl()" class="px-5 py-2.5 rounded-full bg-[#f4efe9] hover:bg-[#e8e0d7] text-[#5c534e] flex items-center gap-2 transition">
+                    <i data-lucide="link" class="w-3.5 h-3.5"></i> 청첩장 주소 복사하기
+                </button>
+            </div>
+            <p class="font-en text-xs tracking-widest text-[#b5a89f]">Thank you for celebrating with us</p>
+        </footer>
+
+        <!-- 사진 확대 모달 -->
+        <div id="photo-modal" onclick="closePhotoModal()" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-6">
+            <div onclick="event.stopPropagation()" class="bg-[#fdfbf9] w-full max-w-sm rounded-2xl p-6 text-center relative">
+                <button onclick="closePhotoModal()" class="absolute top-4 right-4 text-[#8c7b70] hover:text-[#4a423e]">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                <div class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center my-4">
+                    <i data-lucide="image" class="w-10 h-10 text-[#bfb3a8] mb-2"></i>
+                    <p id="modal-photo-title" class="text-sm font-sans-kr text-[#8c7b70]">사진 영역</p>
+                    <p class="text-xs font-sans-kr text-[#b5a89f] mt-1">이곳에 원본 이미지가 표시됩니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 토스트 알림창 (alert 대체) -->
+        <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-full bg-[#3a3532]/95 text-white text-xs font-sans-kr shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 whitespace-nowrap">
+            알림 메시지
+        </div>
+    </div>
+
+    <script>
+        // Lucide 아이콘 초기화
+        lucide.createIcons();
+
+        // 스크롤 페이드인 애니메이션 관찰자
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+        // 아코디언 토글 함수
+        function toggleAccordion(contentId, iconId) {
+            const content = document.getElementById(contentId);
+            const icon = document.getElementById(iconId);
+            content.classList.toggle('open');
+            icon.classList.toggle('rotate-180');
+        }
+
+        // 토스트 메시지 표시 함수
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        // 클립보드 복사 함수 (계좌번호)
+        function copyAccount(accountNumber) {
+            if (!accountNumber || accountNumber.trim() === '') {
+                showToast('계좌번호가 아직 입력되지 않았습니다.');
+                return;
+            }
+            const tempInput = document.createElement('textarea');
+            tempInput.value = accountNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('계좌번호가 복사되었습니다.');
+        }
+
+        // URL 복사 함수
+        function copyUrl() {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = window.location.href;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('청첩장 주소가 복사되었습니다.');
+        }
+
+        // 갤러리 모달 열기/닫기
+        function openPhotoModal(index) {
+            const modal = document.getElementById('photo-modal');
+            const title = document.getElementById('modal-photo-title');
+            title.textContent = `[ 사진 ${index} 확대 보기 ]`;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closePhotoModal() {
+            const modal = document.getElementById('photo-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // 방명록 추가 함수
+        function addGuestbook(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('guest-name');
+            const msgInput = document.getElementById('guest-msg');
+            const list = document.getElementById('guestbook-list');
+
+            const item = document.createElement('div');
+            item.className = 'bg-white p-4 rounded-xl border border-[#ede7df]';
+            item.innerHTML = `
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="font-medium text-[#4a423e]">${escapeHtml(nameInput.value)}</span>
+                    <span class="text-[10px] text-[#a89c91]">방금 전</span>
+                </div>
+                <p class="text-[#6e645e] leading-relaxed">${escapeHtml(msgInput.value)}</p>
+            `;
+            list.prepend(item);
+            nameInput.value = '';
+            msgInput.value = '';
+            showToast('축하 메시지가 등록되었습니다.');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m];
+            });
+        }
+
+        // 간단한 BGM 토글 상태 안내
+        let bgmPlaying = false;
+        function toggleBgm() {
+            bgmPlaying = !bgmPlaying;
+            const text = document.getElementById('bgm-text');
+            text.textContent = bgmPlaying ? 'BGM ON' : 'BGM OFF';
+            showToast(bgmPlaying ? '배경음악이 켜졌습니다.' : '배경음악이 꺼졌습니다.');
+        }
+
+        // 벚꽃잎/꽃잎이 흩날리는 캔버스 효과
+        window.onload = function() {
+            const canvas = document.getElementById('petal-canvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.parentElement.clientWidth;
+            let height = canvas.parentElement.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            const petals = [];
+            const petalCount = 18;
+
+            for (let i = 0; i < petalCount; i++) {
+                petals.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    r: Math.random() * 4 + 3,
+                    d: Math.random() * petalCount,
+                    angle: Math.random() * 360,
+                    speed: Math.random() * 0.7 + 0.4
+                });
+            }
+
+            function drawPetals() {
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = 'rgba(235, 213, 205, 0.55)';
+                ctx.beginPath();
+                for (let i = 0; i < petalCount; i++) {
+                    const p = petals[i];
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.angle * Math.PI) / 180);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, p.r, p.r * 0.6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                updatePetals();
+                requestAnimationFrame(drawPetals);
+            }
+
+            function updatePetals() {
+                for (let i = 0; i < petalCount; i++) {
+                    const p = petals[i];
+                    p.y += p.speed;
+                    p.x += Math.sin(p.d) * 0.4;
+                    p.angle += 0.5;
+
+                    if (p.y > height) {
+                        petals[i] = { x: Math.random() * width, y: -10, r: p.r, d: p.d, angle: p.angle, speed: p.speed };
+                    }
+                }
+            }
+
+            drawPetals();
+        };
+    </script>
+</body>
+</html>
