@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>모바일 청첩장</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: 한국어 명조(Gowun Batang) & 고딕(Noto Sans KR) & 영문 세리프(Cormorant Garamond) -->
@@ -12,6 +15,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Kakao Maps SDK -->
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=45764f82916467b82c386e6868046283&libraries=services&autoload=false"></script>
     
     <style>
         body {
@@ -45,15 +50,17 @@
         .accordion-content.open {
             max-height: 600px;
         }
-        /* 꽃잎 애니메이션 캔버스 */
+        /* 꽃잎 애니메이션 캔버스 (화면 전체 고정으로 스크롤 시에도 자연스럽게 표시) */
         #petal-canvas {
-            position: absolute;
+            position: fixed;
             top: 0;
-            left: 0;
+            left: 50%;
+            transform: translateX(-50%);
             width: 100%;
-            height: 100%;
+            max-width: 430px;
+            height: 100vh;
             pointer-events: none;
-            z-index: 10;
+            z-index: 40;
         }
         /* 스크롤바 숨기기 */
         .no-scrollbar::-webkit-scrollbar {
@@ -76,10 +83,16 @@
         <!-- 상단 BGM / 공유 플로팅 바 -->
         <div class="sticky top-0 z-30 flex justify-between items-center px-5 py-3 bg-[#fdfbf9]/80 backdrop-blur-md border-b border-[#efebe4]">
             <span class="font-en text-sm tracking-widest text-[#9c8d83] uppercase">Wedding Invitation</span>
-            <button id="bgm-btn" onclick="toggleBgm()" class="flex items-center gap-1.5 text-xs font-sans-kr text-[#7a6f67] bg-[#f4efe9] px-3 py-1.5 rounded-full hover:bg-[#e9e1d8] transition">
-                <i data-lucide="volume-x" id="bgm-icon" class="w-3.5 h-3.5"></i>
-                <span id="bgm-text">BGM OFF</span>
-            </button>
+            <div class="flex items-center gap-1.5">
+                <button id="ai-photo-btn" onclick="generateAiWeddingPhotos()" class="flex items-center gap-1 text-xs font-sans-kr text-[#7a6f67] bg-[#f4efe9] px-2.5 py-1.5 rounded-full hover:bg-[#e9e1d8] transition" title="AI로 새로운 웨딩 화보 생성">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-600"></i>
+                    <span id="ai-photo-text">AI 화보 생성</span>
+                </button>
+                <button id="bgm-btn" onclick="toggleBgm()" class="flex items-center gap-1.5 text-xs font-sans-kr text-[#7a6f67] bg-[#f4efe9] px-3 py-1.5 rounded-full hover:bg-[#e9e1d8] transition">
+                    <i data-lucide="volume-x" id="bgm-icon" class="w-3.5 h-3.5"></i>
+                    <span id="bgm-text">BGM OFF</span>
+                </button>
+            </div>
         </div>
 
         <!-- 1. 메인 커버 섹션 -->
@@ -89,40 +102,39 @@
                 <p class="text-xs tracking-[0.2em] text-[#a3968c] font-sans-kr">SATURDAY 1:00 PM</p>
             </div>
 
-            <!-- 메인 사진 영역 (빈 값 / 플레이스홀더) -->
-            <div class="w-full aspect-[3/4] rounded-t-full rounded-b-2xl border border-[#e5dec9] bg-[#f5f2ed] flex flex-col items-center justify-center p-6 mb-8 relative overflow-hidden shadow-inner group">
-                <!-- 이미지를 넣으실 때 아래 img 태그의 주석을 풀고 src에 이미지 경로를 넣으세요 -->
-                <!-- <img src="" alt="메인 웨딩 사진" class="w-full h-full object-cover absolute inset-0"> -->
-                
-                <div class="z-10 flex flex-col items-center text-[#b5a89f]">
-                    <i data-lucide="image" class="w-12 h-12 mb-3 stroke-[1.2]"></i>
-                    <p class="text-sm font-sans-kr font-light tracking-wider">[ 메인 웨딩 사진 영역 ]</p>
-                    <p class="text-[11px] font-sans-kr text-[#c7bcb4] mt-1">비율 3:4 사진을 이곳에 넣어주세요</p>
+            <!-- 메인 사진 영역 (가상 웨딩 이미지 적용) -->
+            <div class="w-full aspect-[3/4] rounded-t-full rounded-b-2xl border border-[#e5dec9] bg-[#f5f2ed] flex flex-col items-center justify-center mb-8 relative overflow-hidden shadow-md group cursor-pointer" onclick="openPhotoModal(0)">
+                <img id="main-wedding-img" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80" alt="조광희 & 이예진 메인 웨딩 사진" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+                <div id="main-img-loading" class="absolute inset-0 bg-black/40 backdrop-blur-xs hidden flex-col items-center justify-center text-white z-20">
+                    <div class="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p class="text-xs font-sans-kr">AI 웨딩 사진을 그리고 있습니다...</p>
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none"></div>
+                <div class="absolute bottom-4 left-0 right-0 text-white/90 font-en tracking-[0.25em] text-xs pointer-events-none">
+                    KWANGHEE &amp; YEJIN
                 </div>
             </div>
 
-            <!-- 신랑 & 신부 이름 영역 (빈 값 처리) -->
+            <!-- 신랑 & 신부 이름 영역 -->
             <div class="flex items-center justify-center gap-6 text-xl tracking-widest font-bold text-[#4a423e] mb-3">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-normal text-[#9c8d83]">신랑</span>
-                    <span class="border-b border-[#d4c8be] min-w-[70px] py-1 inline-block text-center text-[#8c7b70] font-normal">
-                        <!-- 신랑 이름 입력란 -->
-                        &nbsp;
+                    <span class="border-b border-[#d4c8be] min-w-[70px] py-1 inline-block text-center text-[#4a423e] font-bold">
+                        조광희
                     </span>
                 </div>
                 <span class="font-en text-lg italic text-[#b5a397]">&amp;</span>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-normal text-[#9c8d83]">신부</span>
-                    <span class="border-b border-[#d4c8be] min-w-[70px] py-1 inline-block text-center text-[#8c7b70] font-normal">
-                        <!-- 신부 이름 입력란 -->
-                        &nbsp;
+                    <span class="border-b border-[#d4c8be] min-w-[70px] py-1 inline-block text-center text-[#4a423e] font-bold">
+                        이예진
                     </span>
                 </div>
             </div>
 
             <p class="text-xs text-[#8c7f77] font-sans-kr font-light mt-4 leading-relaxed">
                 2026년 10월 24일 토요일 오후 1시<br>
-                <span>[ 예식장 이름 및 홀 정보 입력 ]</span>
+                <span class="font-medium text-[#5c534e]">동서울 웨딩컨벤션 1층 1홀</span>
             </p>
         </section>
 
@@ -147,21 +159,21 @@
                 </p>
             </div>
 
-            <!-- 혼주 및 신랑신부 이름 영역 (빈 값 처리) -->
+            <!-- 혼주 및 신랑신부 이름 영역 -->
             <div class="mt-12 pt-8 border-t border-[#f0eae3] space-y-4 text-sm text-[#4a423e]">
                 <div class="flex items-center justify-center gap-2">
                     <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
                     <span>·</span>
                     <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
-                    <span class="text-xs text-[#8c7f77] px-1">의 장남</span>
-                    <span class="inline-block min-w-[65px] border-b border-[#dcd3cb] font-bold text-center py-0.5">&nbsp;</span>
+                    <span class="text-xs text-[#8c7f77] px-1">의 아들</span>
+                    <span class="inline-block min-w-[65px] border-b border-[#dcd3cb] font-bold text-center py-0.5">조광희</span>
                 </div>
                 <div class="flex items-center justify-center gap-2">
                     <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
                     <span>·</span>
                     <span class="inline-block min-w-[55px] border-b border-[#dcd3cb] text-center py-0.5">&nbsp;</span>
-                    <span class="text-xs text-[#8c7f77] px-1">의 장녀</span>
-                    <span class="inline-block min-w-[65px] border-b border-[#dcd3cb] font-bold text-center py-0.5">&nbsp;</span>
+                    <span class="text-xs text-[#8c7f77] px-1">의 딸</span>
+                    <span class="inline-block min-w-[65px] border-b border-[#dcd3cb] font-bold text-center py-0.5">이예진</span>
                 </div>
             </div>
         </section>
@@ -227,46 +239,40 @@
             </div>
 
             <p class="text-xs text-[#6e645e] font-sans-kr">
-                저희 두 사람의 결혼식이 <span class="text-[#a6866e] font-bold">소중한 날</span>로 다가옵니다.
+                광희 <span class="text-rose-400">♥</span> 예진의 결혼식이 <span class="text-[#a6866e] font-bold">소중한 날</span>로 다가옵니다.
             </p>
         </section>
 
-        <!-- 4. 갤러리 섹션 (사진 빈 값 처리) -->
+        <!-- 4. 갤러리 섹션 (가상 웨딩 화보 적용) -->
         <section class="px-6 py-14 text-center fade-up">
             <p class="font-en text-sm tracking-[0.2em] text-[#a8988d] uppercase mb-2">Gallery</p>
             <h2 class="text-lg font-bold text-[#4a423e] mb-8 tracking-widest">우리의 순간들</h2>
 
-            <!-- 6칸 그리드 사진 영역 (빈 값 플레이스홀더) -->
+            <!-- 6칸 그리드 사진 영역 -->
             <div class="grid grid-cols-2 gap-3">
                 <!-- 사진 1 -->
-                <div onclick="openPhotoModal(1)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
-                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
-                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 1</span>
+                <div onclick="openPhotoModal(1)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden cursor-pointer relative group shadow-sm">
+                    <img id="gallery-img-1" src="https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=600&q=80" alt="웨딩 갤러리 1" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                 </div>
                 <!-- 사진 2 -->
-                <div onclick="openPhotoModal(2)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
-                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
-                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 2</span>
+                <div onclick="openPhotoModal(2)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden cursor-pointer relative group shadow-sm">
+                    <img id="gallery-img-2" src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=600&q=80" alt="웨딩 갤러리 2" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                 </div>
                 <!-- 사진 3 -->
-                <div onclick="openPhotoModal(3)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
-                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
-                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 3</span>
+                <div onclick="openPhotoModal(3)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden cursor-pointer relative group shadow-sm">
+                    <img id="gallery-img-3" src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=600&q=80" alt="웨딩 갤러리 3" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                 </div>
                 <!-- 사진 4 -->
-                <div onclick="openPhotoModal(4)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
-                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
-                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 4</span>
+                <div onclick="openPhotoModal(4)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden cursor-pointer relative group shadow-sm">
+                    <img id="gallery-img-4" src="https://images.unsplash.com/photo-1606800052052-a08af7148866?auto=format&fit=crop&w=600&q=80" alt="웨딩 갤러리 4" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                 </div>
                 <!-- 사진 5 -->
-                <div onclick="openPhotoModal(5)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
-                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
-                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 5</span>
+                <div onclick="openPhotoModal(5)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden cursor-pointer relative group shadow-sm">
+                    <img id="gallery-img-5" src="https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=600&q=80" alt="웨딩 갤러리 5" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                 </div>
                 <!-- 사진 6 -->
-                <div onclick="openPhotoModal(6)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center cursor-pointer hover:bg-[#ece6de] transition group">
-                    <i data-lucide="camera" class="w-6 h-6 text-[#bfb3a8] mb-1.5 group-hover:scale-110 transition"></i>
-                    <span class="text-xs font-sans-kr text-[#a89c91]">사진 6</span>
+                <div onclick="openPhotoModal(6)" class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden cursor-pointer relative group shadow-sm">
+                    <img id="gallery-img-6" src="https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=600&q=80" alt="웨딩 갤러리 6" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                 </div>
             </div>
         </section>
@@ -277,26 +283,32 @@
             <h2 class="text-lg font-bold text-[#4a423e] mb-6 tracking-widest">오시는 길</h2>
 
             <div class="mb-6">
-                <p class="text-base font-bold text-[#4a423e] mb-1">[ 예식장 이름 및 층/홀 입력 ]</p>
-                <p class="text-xs font-sans-kr text-[#7a6f67] mb-3">[ 예식장 도로명 또는 지번 주소 입력 ]</p>
-                <p class="text-xs font-sans-kr text-[#9c8d83]">Tel. 02-000-0000</p>
+                <p class="text-base font-bold text-[#4a423e] mb-1">동서울 웨딩컨벤션 1층 1홀</p>
+                <p class="text-xs font-sans-kr text-[#7a6f67] mb-2">경기 성남시 수정구 복정로 76</p>
+                <button onclick="copyAddress('경기 성남시 수정구 복정로 76 동서울 웨딩컨벤션')" class="inline-flex items-center gap-1 text-[11px] font-sans-kr text-[#8c7b70] bg-white px-2.5 py-1 rounded-full border border-[#e2dad0] hover:bg-[#f4efe9] transition">
+                    <i data-lucide="copy" class="w-3 h-3"></i> 주소 복사하기
+                </button>
             </div>
 
-            <!-- 약도/지도 이미지 영역 (빈 값 플레이스홀더) -->
-            <div class="w-full h-52 rounded-2xl bg-[#efeae2] border border-[#e0d8cc] flex flex-col items-center justify-center mb-4">
-                <i data-lucide="map-pin" class="w-8 h-8 text-[#b5a698] mb-2 stroke-[1.5]"></i>
-                <p class="text-xs font-sans-kr text-[#9c8e80]">[ 지도 API 또는 약도 이미지 영역 ]</p>
+            <!-- 카카오맵 연동 영역 -->
+            <div class="w-full h-60 rounded-2xl bg-[#efeae2] border border-[#e0d8cc] overflow-hidden mb-4 relative shadow-sm">
+                <div id="kakao-map" class="w-full h-full"></div>
+                <div id="map-fallback" class="hidden absolute inset-0 bg-[#efeae2] flex-col items-center justify-center p-4 text-center z-10">
+                    <i data-lucide="map-pin" class="w-8 h-8 text-[#b5a698] mb-2 stroke-[1.5]"></i>
+                    <p class="text-xs font-sans-kr font-medium text-[#5c534e]">동서울 웨딩컨벤션 1층 1홀</p>
+                    <p class="text-[11px] font-sans-kr text-[#9c8e80] mt-0.5">경기 성남시 수정구 복정로 76</p>
+                </div>
             </div>
 
-            <!-- 내비게이션 바로가기 버튼 -->
+            <!-- 내비게이션 바로가기 버튼 (앱 실행 및 웹 폴백 연동) -->
             <div class="grid grid-cols-3 gap-2 mb-8 font-sans-kr text-xs">
-                <button onclick="showToast('네이버 지도 링크를 연결해주세요.')" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5]">
+                <button onclick="openNaverMap()" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5] active:scale-95 transition">
                     <i data-lucide="navigation" class="w-3.5 h-3.5 text-green-600"></i> 네이버지도
                 </button>
-                <button onclick="showToast('카카오내비 링크를 연결해주세요.')" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5]">
+                <button onclick="openKakaoNavi()" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5] active:scale-95 transition">
                     <i data-lucide="map" class="w-3.5 h-3.5 text-amber-500"></i> 카카오내비
                 </button>
-                <button onclick="showToast('티맵 링크를 연결해주세요.')" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5]">
+                <button onclick="openTmap()" class="py-2.5 px-3 bg-white rounded-xl border border-[#e2dad0] text-[#4a423e] flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#faf8f5] active:scale-95 transition">
                     <i data-lucide="compass" class="w-3.5 h-3.5 text-rose-500"></i> 티맵
                 </button>
             </div>
@@ -307,19 +319,19 @@
                     <p class="font-medium text-[#4a423e] flex items-center gap-1.5 mb-1">
                         <i data-lucide="train" class="w-4 h-4 text-[#9c8d83]"></i> 지하철 안내
                     </p>
-                    <p class="text-[#7a6f67] pl-5 leading-relaxed">0호선 OO역 0번 출구 도보 5분</p>
+                    <p class="text-[#7a6f67] pl-5 leading-relaxed">8호선·수인분당선 복정역 인근 (동서울대 방면)</p>
                 </div>
                 <div class="border-t border-[#f4f0ea] pt-3">
                     <p class="font-medium text-[#4a423e] flex items-center gap-1.5 mb-1">
                         <i data-lucide="bus" class="w-4 h-4 text-[#9c8d83]"></i> 버스 안내
                     </p>
-                    <p class="text-[#7a6f67] pl-5 leading-relaxed">간선: 000, 000 / 지선: 0000<br>OO 정류장 하차</p>
+                    <p class="text-[#7a6f67] pl-5 leading-relaxed">동서울대학교, 동서울웨딩컨벤션 정류장 하차</p>
                 </div>
                 <div class="border-t border-[#f4f0ea] pt-3">
                     <p class="font-medium text-[#4a423e] flex items-center gap-1.5 mb-1">
                         <i data-lucide="car" class="w-4 h-4 text-[#9c8d83]"></i> 주차 안내
                     </p>
-                    <p class="text-[#7a6f67] pl-5 leading-relaxed">건물 내 지하주차장 이용 (2시간 무료 주차)</p>
+                    <p class="text-[#7a6f67] pl-5 leading-relaxed">웨딩홀 전용 주차장 이용</p>
                 </div>
             </div>
         </section>
@@ -492,16 +504,15 @@
         </footer>
 
         <!-- 사진 확대 모달 -->
-        <div id="photo-modal" onclick="closePhotoModal()" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-6">
-            <div onclick="event.stopPropagation()" class="bg-[#fdfbf9] w-full max-w-sm rounded-2xl p-6 text-center relative">
-                <button onclick="closePhotoModal()" class="absolute top-4 right-4 text-[#8c7b70] hover:text-[#4a423e]">
-                    <i data-lucide="x" class="w-5 h-5"></i>
+        <div id="photo-modal" onclick="closePhotoModal()" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-5">
+            <div onclick="event.stopPropagation()" class="bg-[#fdfbf9] w-full max-w-sm rounded-2xl p-4 text-center relative shadow-2xl">
+                <button onclick="closePhotoModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 z-10">
+                    <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
-                <div class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] flex flex-col items-center justify-center my-4">
-                    <i data-lucide="image" class="w-10 h-10 text-[#bfb3a8] mb-2"></i>
-                    <p id="modal-photo-title" class="text-sm font-sans-kr text-[#8c7b70]">사진 영역</p>
-                    <p class="text-xs font-sans-kr text-[#b5a89f] mt-1">이곳에 원본 이미지가 표시됩니다.</p>
+                <div class="aspect-[3/4] rounded-xl bg-[#f4f1ec] border border-[#e6dfd5] overflow-hidden flex flex-col items-center justify-center">
+                    <img id="modal-photo-img" src="" alt="확대 웨딩 사진" class="w-full h-full object-cover">
                 </div>
+                <p id="modal-photo-title" class="text-xs font-sans-kr text-[#8c7b70] mt-3">조광희 ♥ 이예진 웨딩 갤러리</p>
             </div>
         </div>
 
@@ -564,6 +575,17 @@
             showToast('계좌번호가 복사되었습니다.');
         }
 
+        // 주소 복사 함수
+        function copyAddress(addr) {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = addr;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('예식장 주소가 복사되었습니다.');
+        }
+
         // URL 복사 함수
         function copyUrl() {
             const tempInput = document.createElement('textarea');
@@ -578,8 +600,20 @@
         // 갤러리 모달 열기/닫기
         function openPhotoModal(index) {
             const modal = document.getElementById('photo-modal');
+            const modalImg = document.getElementById('modal-photo-img');
             const title = document.getElementById('modal-photo-title');
-            title.textContent = `[ 사진 ${index} 확대 보기 ]`;
+            
+            if (index === 0) {
+                modalImg.src = document.getElementById('main-wedding-img').src;
+                title.textContent = '조광희 ♥ 이예진 메인 웨딩 화보';
+            } else {
+                const targetImg = document.getElementById(`gallery-img-${index}`);
+                if (targetImg) {
+                    modalImg.src = targetImg.src;
+                }
+                title.textContent = `웨딩 갤러리 #${index}`;
+            }
+            
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
@@ -588,6 +622,197 @@
             const modal = document.getElementById('photo-modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+        }
+
+        // Gemini API 기반 가상 웨딩 화보 이미지 생성 기능
+        async function fetchGeminiWeddingImage(promptText) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+                generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+            };
+
+            let delay = 1000;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const result = await response.json();
+                        const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                        if (base64Data) {
+                            return `data:image/png;base64,${base64Data}`;
+                        }
+                    }
+                } catch (e) {
+                    // 재시도 처리
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+            return null;
+        }
+
+        let isGeneratingAiPhoto = false;
+        async function generateAiWeddingPhotos() {
+            if (isGeneratingAiPhoto) return;
+            isGeneratingAiPhoto = true;
+
+            const loadingOverlay = document.getElementById('main-img-loading');
+            const btnText = document.getElementById('ai-photo-text');
+            loadingOverlay.classList.remove('hidden');
+            loadingOverlay.classList.add('flex');
+            btnText.textContent = '생성 중...';
+
+            const mainPrompt = "A romantic, high-end Korean wedding photography portrait of a handsome Korean groom in a classic black tuxedo and a beautiful Korean bride in an elegant white wedding dress, warm sunlight, soft floral background, pastel aesthetic, vertical 3:4 ratio";
+            const generatedMain = await fetchGeminiWeddingImage(mainPrompt);
+
+            if (generatedMain) {
+                document.getElementById('main-wedding-img').src = generatedMain;
+                showToast('AI 웨딩 메인 화보가 새롭게 생성되었습니다.');
+            } else {
+                showToast('기본 웨딩 화보가 유지됩니다.');
+            }
+
+            loadingOverlay.classList.add('hidden');
+            loadingOverlay.classList.remove('flex');
+            btnText.textContent = 'AI 화보 생성';
+            isGeneratingAiPhoto = false;
+        }
+
+        // 예식장 좌표 및 정보 (동서울 웨딩컨벤션: 경기 성남시 수정구 복정로 76)
+        const WEDDING_HALL = {
+            name: '동서울웨딩컨벤션 1층 1홀',
+            address: '경기 성남시 수정구 복정로 76',
+            lat: 37.462246,
+            lng: 127.137632
+        };
+
+        // 카카오맵 초기화
+        function initKakaoMap() {
+            const container = document.getElementById('kakao-map');
+            const fallback = document.getElementById('map-fallback');
+
+            if (typeof kakao === 'undefined' || !kakao.maps) {
+                fallback.classList.remove('hidden');
+                fallback.classList.add('flex');
+                return;
+            }
+
+            kakao.maps.load(function() {
+                const defaultCoords = new kakao.maps.LatLng(WEDDING_HALL.lat, WEDDING_HALL.lng);
+                const mapOption = {
+                    center: defaultCoords,
+                    level: 3
+                };
+
+                const map = new kakao.maps.Map(container, mapOption);
+
+                if (kakao.maps.services) {
+                    const geocoder = new kakao.maps.services.Geocoder();
+                    geocoder.addressSearch(WEDDING_HALL.address, function(result, status) {
+                        if (status === kakao.maps.services.Status.OK) {
+                            const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+                            WEDDING_HALL.lat = parseFloat(result[0].y);
+                            WEDDING_HALL.lng = parseFloat(result[0].x);
+
+                            const marker = new kakao.maps.Marker({
+                                map: map,
+                                position: coords
+                            });
+
+                            const infowindow = new kakao.maps.InfoWindow({
+                                content: '<div style="padding:6px 10px;font-size:12px;font-weight:600;color:#4a423e;white-space:nowrap;text-align:center;">동서울 웨딩컨벤션 1층 1홀</div>'
+                            });
+                            infowindow.open(map, marker);
+                            map.setCenter(coords);
+                        } else {
+                            setDefaultMarker(map, defaultCoords);
+                        }
+                    });
+                } else {
+                    setDefaultMarker(map, defaultCoords);
+                }
+            });
+        }
+
+        function setDefaultMarker(map, coords) {
+            const marker = new kakao.maps.Marker({
+                map: map,
+                position: coords
+            });
+            const infowindow = new kakao.maps.InfoWindow({
+                content: '<div style="padding:6px 10px;font-size:12px;font-weight:600;color:#4a423e;white-space:nowrap;text-align:center;">동서울 웨딩컨벤션 1층 1홀</div>'
+            });
+            infowindow.open(map, marker);
+        }
+
+        // 내비게이션 앱 이동 함수 (모바일 앱 딥링크 호출 및 미설치/PC 시 웹 지도 연결)
+        function isMobileDevice() {
+            return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        function openNaverMap() {
+            const encodedName = encodeURIComponent('동서울웨딩컨벤션');
+            const appUrl = `nmap://route/car?dlat=${WEDDING_HALL.lat}&dlng=${WEDDING_HALL.lng}&dname=${encodedName}&appname=wedding.invitation`;
+            const webUrl = `https://map.naver.com/p/search/${encodeURIComponent('경기 성남시 수정구 복정로 76 동서울웨딩컨벤션')}`;
+
+            if (isMobileDevice()) {
+                showToast('네이버 지도 앱으로 이동합니다.');
+                const clickedAt = +new Date();
+                window.location.href = appUrl;
+                setTimeout(() => {
+                    if (+new Date() - clickedAt < 2000) {
+                        window.open(webUrl, '_blank');
+                    }
+                }, 1500);
+            } else {
+                window.open(webUrl, '_blank');
+            }
+        }
+
+        function openKakaoNavi() {
+            const encodedName = encodeURIComponent('동서울웨딩컨벤션');
+            const appUrl = `kakaomap://route?ep=${WEDDING_HALL.lat},${WEDDING_HALL.lng}&by=CAR`;
+            const webUrl = `https://map.kakao.com/link/to/${encodedName},${WEDDING_HALL.lat},${WEDDING_HALL.lng}`;
+
+            if (isMobileDevice()) {
+                showToast('카카오내비/카카오맵 앱으로 이동합니다.');
+                const clickedAt = +new Date();
+                window.location.href = appUrl;
+                setTimeout(() => {
+                    if (+new Date() - clickedAt < 2000) {
+                        window.open(webUrl, '_blank');
+                    }
+                }, 1500);
+            } else {
+                window.open(webUrl, '_blank');
+            }
+        }
+
+        function openTmap() {
+            const encodedName = encodeURIComponent('동서울웨딩컨벤션');
+            const appUrl = `tmap://route?goalname=${encodedName}&goalx=${WEDDING_HALL.lng}&goaly=${WEDDING_HALL.lat}`;
+            const webUrl = `https://map.naver.com/p/search/${encodeURIComponent('경기 성남시 수정구 복정로 76 동서울웨딩컨벤션')}`;
+
+            if (isMobileDevice()) {
+                showToast('티맵 앱으로 이동합니다.');
+                const clickedAt = +new Date();
+                window.location.href = appUrl;
+                setTimeout(() => {
+                    if (+new Date() - clickedAt < 2000) {
+                        showToast('티맵 앱이 설치되어 있지 않아 웹 지도로 안내합니다.');
+                        window.open(webUrl, '_blank');
+                    }
+                }, 1500);
+            } else {
+                showToast('모바일 환경에서 티맵 앱으로 바로 연결됩니다.');
+                window.open(webUrl, '_blank');
+            }
         }
 
         // 방명록 추가 함수
@@ -627,38 +852,80 @@
             showToast(bgmPlaying ? '배경음악이 켜졌습니다.' : '배경음악이 꺼졌습니다.');
         }
 
-        // 벚꽃잎/꽃잎이 흩날리는 캔버스 효과
+        // 벚꽃잎/꽃잎이 흩날리는 캔버스 효과 (기본 20개 고정, 터치 및 스크롤 시 40개 증가)
         window.onload = function() {
+            initKakaoMap();
+
             const canvas = document.getElementById('petal-canvas');
             const ctx = canvas.getContext('2d');
-            let width = canvas.parentElement.clientWidth;
-            let height = canvas.parentElement.clientHeight;
+            let width = canvas.clientWidth || 430;
+            let height = window.innerHeight;
             canvas.width = width;
             canvas.height = height;
 
-            const petals = [];
-            const petalCount = 18;
+            window.addEventListener('resize', () => {
+                width = canvas.clientWidth || 430;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+            });
 
-            for (let i = 0; i < petalCount; i++) {
-                petals.push({
+            const BASE_PETAL_COUNT = 20;
+            const BOOST_PETAL_COUNT = 40; // 기본 20개에서 터치 및 스크롤 시 40개로 고정 증가
+            let targetPetalCount = BASE_PETAL_COUNT;
+            let boostTimer = null;
+
+            const petals = [];
+
+            function createPetal(fromTop = false) {
+                return {
                     x: Math.random() * width,
-                    y: Math.random() * height,
-                    r: Math.random() * 4 + 3,
-                    d: Math.random() * petalCount,
+                    y: fromTop ? -10 - Math.random() * 40 : Math.random() * height,
+                    r: Math.random() * 4.5 + 3,
+                    d: Math.random() * 50,
                     angle: Math.random() * 360,
-                    speed: Math.random() * 0.7 + 0.4
-                });
+                    speed: Math.random() * 0.9 + 0.5,
+                    opacity: Math.random() * 0.35 + 0.4
+                };
             }
+
+            for (let i = 0; i < BASE_PETAL_COUNT; i++) {
+                petals.push(createPetal(false));
+            }
+
+            // 터치 및 스크롤 이벤트 발생 시 꽃잎 양 40개로 증가
+            let lastTriggerTime = 0;
+            function boostPetals() {
+                const now = Date.now();
+                if (now - lastTriggerTime < 80) return; // 과도한 이벤트 중복 방지
+                lastTriggerTime = now;
+
+                targetPetalCount = BOOST_PETAL_COUNT;
+
+                while (petals.length < targetPetalCount) {
+                    petals.push(createPetal(false));
+                }
+
+                // 스크롤/터치가 멈추면 서서히 기본 꽃잎 양(20개)으로 자연스럽게 복귀
+                clearTimeout(boostTimer);
+                boostTimer = setTimeout(() => {
+                    targetPetalCount = BASE_PETAL_COUNT;
+                }, 2200);
+            }
+
+            window.addEventListener('scroll', boostPetals, { passive: true });
+            window.addEventListener('touchstart', boostPetals, { passive: true });
+            window.addEventListener('touchmove', boostPetals, { passive: true });
+            window.addEventListener('wheel', boostPetals, { passive: true });
 
             function drawPetals() {
                 ctx.clearRect(0, 0, width, height);
-                ctx.fillStyle = 'rgba(235, 213, 205, 0.55)';
-                ctx.beginPath();
-                for (let i = 0; i < petalCount; i++) {
+                for (let i = 0; i < petals.length; i++) {
                     const p = petals[i];
                     ctx.save();
                     ctx.translate(p.x, p.y);
                     ctx.rotate((p.angle * Math.PI) / 180);
+                    ctx.fillStyle = `rgba(235, 205, 198, ${p.opacity})`;
                     ctx.beginPath();
                     ctx.ellipse(0, 0, p.r, p.r * 0.6, 0, 0, Math.PI * 2);
                     ctx.fill();
@@ -669,14 +936,19 @@
             }
 
             function updatePetals() {
-                for (let i = 0; i < petalCount; i++) {
+                for (let i = petals.length - 1; i >= 0; i--) {
                     const p = petals[i];
                     p.y += p.speed;
-                    p.x += Math.sin(p.d) * 0.4;
-                    p.angle += 0.5;
+                    p.x += Math.sin(p.d + p.y * 0.02) * 0.6;
+                    p.angle += 0.8;
 
-                    if (p.y > height) {
-                        petals[i] = { x: Math.random() * width, y: -10, r: p.r, d: p.d, angle: p.angle, speed: p.speed };
+                    if (p.y > height + 15) {
+                        // 목표 개수보다 많을 때는 화면 아래로 떨어진 꽃잎을 제거하여 자연스럽게 감소
+                        if (petals.length > targetPetalCount) {
+                            petals.splice(i, 1);
+                        } else {
+                            petals[i] = createPetal(true);
+                        }
                     }
                 }
             }
